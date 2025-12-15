@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Device Detective</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        #container {
+            width: 100%;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        #three-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .ui-overlay {
+            position: relative;
+            z-index: 2;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            pointer-events: none;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 1rem 0;
+        }
+        
+        .logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #00d4ff;
+            display: flex;
+            align-items: center;
+            font-family: 'JetBrains Mono', monospace;
+            pointer-events: auto;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+            font-size: 1.6rem;
+        }
+        
+        .detect-btn {
+            pointer-events: auto;
+            background: rgba(0, 212, 255, 0.15);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            color: #00d4ff;
+            padding: 0.7rem 1.2rem;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+        
+        .detect-btn:hover {
+            background: rgba(0, 212, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.2);
+        }
+        
+        .robot-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 1rem;
+            margin-top: -2rem;
+        }
+        
+        .speech-bubble {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 2px solid #00d4ff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+            pointer-events: auto;
+            margin-bottom: 2rem;
+        }
+        
+        .speech-bubble.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 15px 15px 0;
+            border-style: solid;
+            border-color: #00d4ff transparent transparent;
+        }
+        
+        .speech-text {
+            font-size: 1.2rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+            color: #fff;
+            text-align: center;
+        }
+        
+        .device-details {
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+        }
+        
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            color: #a0a0c0;
+            font-weight: 500;
+        }
+        
+        .detail-value {
+            color: #00d4ff;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            text-align: right;
+        }
+        
+        .footer {
+            width: 100%;
+            text-align: center;
+            padding: 1rem;
+            color: #a0a0c0;
+            font-size: 0.85rem;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: auto;
+        }
+        
+        .github-link {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .github-link a {
+            color: #a0a0c0;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.3s;
+            font-size: 0.9rem;
+        }
+        
+        .github-link a:hover {
+            color: #00d4ff;
+        }
+        
+        .github-link i {
+            font-size: 1.2rem;
+        }
+        
+        .info-panel {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            pointer-events: auto;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.5s ease 0.5s;
+            margin: 1rem auto;
+        }
+        
+        .info-panel.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .info-panel h3 {
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .info-panel p {
+            color: #a0a0c0;
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+        
+        .controls-hint {
+            display: none;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 1rem;
+            opacity: 0;
+        }
+        
+        .typing-indicator.show {
+            opacity: 1;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #00d4ff;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-10px);
+            }
+        }
+        
+        .robot-status {
+            color: #00d4ff;
+            font-size: 0.85rem;
+            text-align: center;
+            width: 100%;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 1rem;
+        }
+        
+        .mobile-hint {
+            display: none;
+            text-align: center;
+            color: #a0a0c0;
+            font-size: 0.85rem;
+            padding: 1rem;
+            pointer-events: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .ui-overlay {
+                padding: 0.5rem;
+            }
+            
+            .header {
+                padding: 0.5rem 0;
+            }
+            
+            .logo {
+                font-size: 1.2rem;
+            }
+            
+            .logo i {
+                font-size: 1.4rem;
+            }
+            
+            .detect-btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.85rem;
+            }
+            
+            .robot-container {
+                margin-top: 0;
+                padding: 0.5rem;
+            }
+            
+            .speech-bubble {
+                padding: 1.2rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .speech-text {
+                font-size: 1.1rem;
+            }
+            
+            .device-details {
+                padding: 0.8rem;
+            }
+            
+            .detail-item {
+                flex-direction: column;
+                gap: 0.2rem;
+                padding: 0.3rem 0;
+            }
+            
+            .detail-label, .detail-value {
+                text-align: left;
+                font-size: 0.85rem;
+            }
+            
+            .info-panel {
+                padding: 1.2rem;
+                margin: 0.5rem auto;
+            }
+            
+            .footer {
+                padding: 0.5rem;
+                font-size: 0.8rem;
+            }
+            
+            .mobile-hint {
+                display: block;
+            }
+            
+            .robot-status {
+                font-size: 0.8rem;
+                margin-top: 0.5rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .logo {
+                font-size: 1rem;
+            }
+            
+            .detect-btn {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.8rem;
+            }
+            
+            .speech-text {
+                font-size: 1rem;
+            }
+            
+            .speech-bubble {
+                padding: 1rem;
+            }
+            
+            .info-panel h3 {
+                font-size: 1.1rem;
+            }
+            
+            .info-panel p {
+                font-size: 0.85rem;
+            }
+            
+            .github-link a {
+                font-size: 0.85rem;
+            }
+        }
+        
+        @media (max-width: 360px) {
+            .logo {
+                font-size: 0.9rem;
+            }
+            
+            .detect-btn {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.75rem;
+            }
+            
+            .speech-text {
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (orientation: landscape) and (max-height: 600px) {
+            .robot-container {
+                margin-top: 0;
+            }
+            
+            .speech-bubble {
+                margin-bottom: 1rem;
+                padding: 1rem;
+            }
+            
+            .footer {
+                padding: 0.5rem;
+            }
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 212, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="three-container"></div>
+        
+        <div class="ui-overlay">
+            <div class="header">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    Device Detective
+                </div>
+                <button class="detect-btn" id="detectBtn">
+                    <i class="fas fa-search"></i>
+                    Deteksi
+                </button>
+            </div>
+            
+            <div class="mobile-hint">
+                <i class="fas fa-hand-pointer"></i> Sentuh & geser untuk memutar robot
+            </div>
+            
+            <div class="robot-container">
+                <div class="speech-bubble show" id="speechBubble">
+                    <div class="speech-text" id="speechText">
+                        Tekan tombol "Deteksi" untuk saya analisis perangkat Anda!
+                    </div>
+                    <div class="device-details" id="deviceDetails">
+                        <!-- Device details will be populated here -->
+                    </div>
+                    <div class="typing-indicator" id="typingIndicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+                <div class="robot-status" id="robotStatus">
+                    Robot siap mendeteksi...
+                </div>
+            </div>
+            
+            <div class="info-panel show" id="infoPanel">
+                <h3><i class="fas fa-info-circle"></i> Tentang Deteksi</h3>
+                <p>Robot ini menggunakan JavaScript untuk menganalisis informasi perangkat Anda. Data yang dideteksi meliputi tipe perangkat, sistem operasi, browser, dan kemampuan teknis.</p>
+                <p style="margin-top: 0.8rem; font-size: 0.85rem;">Data hanya diproses di sisi klien dan tidak dikirim ke server mana pun.</p>
+            </div>
+            
+            <div class="footer">
+                <p>Teknologi Three.js & WebGL • Deteksi Perangkat Real-time</p>
+                <div class="github-link">
+                    <a href="https://wakatime.com/@devonn" target="_blank" rel="noopener" id="githubLink">
+                        <i class="fab fa-github"></i> Made by
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let robot = {
+            head: null,
+            body: null,
+            leftEye: null,
+            rightEye: null,
+            mouth: null,
+            antenna: null
+        };
+        let isTalking = false;
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.Fog(0x1a1a2e, 10, isMobile ? 30 : 50);
+            
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, isMobile ? 1.5 : 2, isMobile ? 12 : 10);
+            
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                powerPreference: "high-performance"
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+            renderer.shadowMap.enabled = !isMobile;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            document.getElementById('three-container').appendChild(renderer.domElement);
+            
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = isMobile ? 0.1 : 0.05;
+            controls.minDistance = isMobile ? 8 : 5;
+            controls.maxDistance = isMobile ? 25 : 20;
+            controls.maxPolarAngle = Math.PI / 2;
+            
+            if (isMobile) {
+                controls.enableZoom = false;
+            }
+            
+            addLights();
+            createRobot();
+            createEnvironment();
+            
+            window.addEventListener('resize', onWindowResize);
+            
+            setupEventListeners();
+            
+            animate();
+            
+            setTimeout(() => {
+                if (isMobile) {
+                    document.getElementById('speechText').textContent = "Sentuh tombol 'Deteksi' untuk mulai analisis perangkat Anda!";
+                }
+            }, 1000);
+        }
+        
+        function addLights() {
+            const ambientLight = new THREE.AmbientLight(0xffffff, isMobile ? 0.7 : 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0x00d4ff, isMobile ? 0.6 : 0.8);
+            directionalLight.position.set(5, 10, 5);
+            if (!isMobile) directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            const pointLight = new THREE.PointLight(0x00d4ff, 0.5, 30);
+            pointLight.position.set(-5, 5, -5);
+            scene.add(pointLight);
+            
+            const robotLight = new THREE.PointLight(0x00ffaa, 0.3, 10);
+            robotLight.position.set(0, 3, 0);
+            scene.add(robotLight);
+        }
+        
+        function createRobot() {
+            const metalMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a4a6e,
+                metalness: isMobile ? 0.6 : 0.8,
+                roughness: isMobile ? 0.3 : 0.2
+            });
+            
+            const screenMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x00d4ff,
+                emissive: 0x00d4ff,
+                emissiveIntensity: 0.2
+            });
+            
+            const detailMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2d2d4d,
+                metalness: 0.5,
+                roughness: 0.3
+            });
+            
+            robot.body = new THREE.Group();
+            
+            const bodyGeometry = new THREE.CylinderGeometry(1, 1.3, 2.5, isMobile ? 6 : 8);
+            const body = new THREE.Mesh(bodyGeometry, metalMaterial);
+            body.castShadow = !isMobile;
+            body.receiveShadow = !isMobile;
+            robot.body.add(body);
+            
+            const headGeometry = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+            robot.head = new THREE.Mesh(headGeometry, metalMaterial);
+            robot.head.position.y = 2.3;
+            robot.head.castShadow = !isMobile;
+            robot.head.receiveShadow = !isMobile;
+            robot.body.add(robot.head);
+            
+            const eyeGeometry = new THREE.SphereGeometry(0.25, isMobile ? 12 : 16, isMobile ? 12 : 16);
+            robot.leftEye = new THREE.Mesh(eyeGeometry, screenMaterial);
+            robot.leftEye.position.set(-0.4, 0.2, 0.9);
+            robot.head.add(robot.leftEye);
+            
+            robot.rightEye = new THREE.Mesh(eyeGeometry, screenMaterial);
+            robot.rightEye.position.set(0.4, 0.2, 0.9);
+            robot.head.add(robot.rightEye);
+            
+            const mouthGeometry = new THREE.BoxGeometry(1, 0.15, 0.1);
+            robot.mouth = new THREE.Mesh(mouthGeometry, screenMaterial);
+            robot.mouth.position.set(0, -0.4, 0.9);
+            robot.head.add(robot.mouth);
+            
+            const antennaGeometry = new THREE.CylinderGeometry(0.04, 0.08, 0.6);
+            robot.antenna = new THREE.Mesh(antennaGeometry, detailMaterial);
+            robot.antenna.position.set(0, 1.3, 0);
+            robot.head.add(robot.antenna);
+            
+            const antennaSphere = new THREE.SphereGeometry(0.12, 6, 6);
+            const antennaTop = new THREE.Mesh(antennaSphere, screenMaterial);
+            antennaTop.position.y = 0.35;
+            robot.antenna.add(antennaTop);
+            
+            const armGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.5, isMobile ? 6 : 8);
+            const leftArm = new THREE.Mesh(armGeometry, detailMaterial);
+            leftArm.position.set(-1.5, 0.3, 0);
+            leftArm.rotation.z = 0.3;
+            if (!isMobile) leftArm.castShadow = true;
+            robot.body.add(leftArm);
+            
+            const rightArm = new THREE.Mesh(armGeometry, detailMaterial);
+            rightArm.position.set(1.5, 0.3, 0);
+            rightArm.rotation.z = -0.3;
+            if (!isMobile) rightArm.castShadow = true;
+            robot.body.add(rightArm);
+            
+            const baseGeometry = new THREE.CylinderGeometry(1.5, 2, 0.4, isMobile ? 6 : 8);
+            const base = new THREE.Mesh(baseGeometry, detailMaterial);
+            base.position.y = -1.5;
+            if (!isMobile) {
+                base.castShadow = true;
+                base.receiveShadow = true;
+            }
+            robot.body.add(base);
+            
+            scene.add(robot.body);
+        }
+        
+        function createEnvironment() {
+            const floorGeometry = new THREE.CircleGeometry(isMobile ? 20 : 30, isMobile ? 24 : 32);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x0f3460,
+                metalness: 0.1,
+                roughness: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = !isMobile;
+            scene.add(floor);
+            
+            const gridHelper = new THREE.GridHelper(isMobile ? 20 : 30, isMobile ? 20 : 30, 0x00d4ff, 0x0a1930);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+            
+            if (!isMobile) {
+                for (let i = 0; i < 10; i++) {
+                    const boxGeometry = new THREE.BoxGeometry(
+                        0.5 + Math.random() * 1.5,
+                        1 + Math.random() * 3,
+                        0.5 + Math.random() * 1.5
+                    );
+                    const boxMaterial = new THREE.MeshStandardMaterial({ 
+                        color: 0x16213e,
+                        metalness: 0.3,
+                        roughness: 0.7
+                    });
+                    const box = new THREE.Mesh(boxGeometry, boxMaterial);
+                    box.position.set(
+                        Math.random() * 20 - 10,
+                        boxGeometry.parameters.height / 2,
+                        Math.random() * 20 - 10
+                    );
+                    box.castShadow = true;
+                    box.receiveShadow = true;
+                    scene.add(box);
+                }
+                
+                const ringGeometry = new THREE.TorusGeometry(6, 0.4, 6, 40);
+                const ringMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x00d4ff,
+                    emissive: 0x00d4ff,
+                    emissiveIntensity: 0.1,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 0.8;
+                scene.add(ring);
+            }
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const time = Date.now() * 0.001;
+            
+            if (robot.body) {
+                robot.body.rotation.y = Math.sin(time * 0.3) * 0.1;
+                
+                if (isTalking) {
+                    robot.mouth.scale.y = 1 + Math.sin(time * 10) * 0.5;
+                    robot.antenna.position.y = 1.3 + Math.sin(time * 8) * 0.08;
+                    
+                    const eyeIntensity = 0.2 + Math.sin(time * 5) * 0.1;
+                    robot.leftEye.material.emissiveIntensity = eyeIntensity;
+                    robot.rightEye.material.emissiveIntensity = eyeIntensity;
+                } else {
+                    robot.mouth.scale.y = 1;
+                    robot.antenna.position.y = 1.3;
+                    
+                    robot.leftEye.material.emissiveIntensity = 0.2;
+                    robot.rightEye.material.emissiveIntensity = 0.2;
+                }
+                
+                robot.antenna.rotation.y = time * 0.5;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        function detectDevice() {
+            const userAgent = navigator.userAgent;
+            const platform = navigator.platform;
+            const screenWidth = window.screen.width;
+            const screenHeight = window.screen.height;
+            const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            let deviceType = "Desktop";
+            let os = "Unknown";
+            let browser = "Unknown";
+            
+            if (/Android/.test(userAgent)) {
+                deviceType = "Mobile";
+                os = "Android";
+            } else if (/iPad|iPhone|iPod/.test(userAgent)) {
+                deviceType = "Mobile";
+                os = "iOS";
+            } else if (/Windows/.test(userAgent)) {
+                os = "Windows";
+            } else if (/Mac/.test(userAgent)) {
+                os = "macOS";
+            } else if (/Linux/.test(userAgent)) {
+                os = "Linux";
+            }
+            
+            if ((/Mobile/.test(userAgent) || isTouch) && screenWidth < 768) {
+                deviceType = "Mobile";
+            } else if (/Tablet/.test(userAgent) || (screenWidth >= 768 && screenWidth <= 1024 && isTouch)) {
+                deviceType = "Tablet";
+            }
+            
+            if (/Chrome/.test(userAgent) && !/Edg/.test(userAgent)) {
+                browser = "Chrome";
+            } else if (/Firefox/.test(userAgent)) {
+                browser = "Firefox";
+            } else if (/Safari/.test(userAgent) && !/Chrome/.test(userAgent)) {
+                browser = "Safari";
+            } else if (/Edg/.test(userAgent)) {
+                browser = "Edge";
+            } else if (/Opera|OPR/.test(userAgent)) {
+                browser = "Opera";
+            }
+            
+            const pixelRatio = window.devicePixelRatio;
+            const orientation = screenWidth > screenHeight ? "Landscape" : "Portrait";
+            const connection = navigator.connection ? (navigator.connection.effectiveType || "Unknown") : "Unknown";
+            
+            return {
+                deviceType,
+                os,
+                browser,
+                screen: `${screenWidth} × ${screenHeight}`,
+                touchSupport: isTouch ? "Ya" : "Tidak",
+                pixelRatio: pixelRatio.toFixed(2),
+                orientation,
+                platform,
+                connection,
+                userAgent: userAgent.substring(0, 60) + "..."
+            };
+        }
+        
+        function speakText(text) {
+            isTalking = true;
+            document.getElementById('robotStatus').textContent = "Robot sedang menganalisis...";
+            document.getElementById('typingIndicator').classList.add('show');
+            
+            setTimeout(() => {
+                document.getElementById('speechText').textContent = text;
+                document.getElementById('typingIndicator').classList.remove('show');
+                
+                setTimeout(() => {
+                    isTalking = false;
+                    document.getElementById('robotStatus').textContent = "Robot siap mendeteksi ulang";
+                }, 2000);
+            }, 1500);
+        }
+        
+        function displayDeviceInfo(deviceInfo) {
+            const deviceDetails = document.getElementById('deviceDetails');
+            
+            const deviceNameMap = {
+                "Mobile": "📱 Smartphone",
+                "Tablet": "📟 Tablet",
+                "Desktop": "💻 Desktop"
+            };
+            
+            const osIconMap = {
+                "Windows": "🪟",
+                "macOS": "🍎",
+                "Linux": "🐧",
+                "Android": "🤖",
+                "iOS": ""
+            };
+            
+            const browserIconMap = {
+                "Chrome": "🌐",
+                "Firefox": "🦊",
+                "Safari": "🧭",
+                "Edge": "🔷",
+                "Opera": "🎭"
+            };
+            
+            const deviceDisplay = deviceNameMap[deviceInfo.deviceType] || deviceInfo.deviceType;
+            const osDisplay = (osIconMap[deviceInfo.os] || "💻") + " " + deviceInfo.os;
+            const browserDisplay = (browserIconMap[deviceInfo.browser] || "🌐") + " " + deviceInfo.browser;
+            
+            deviceDetails.innerHTML = `
+                <div class="detail-item">
+                    <span class="detail-label">Tipe Perangkat</span>
+                    <span class="detail-value">${deviceDisplay}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Sistem Operasi</span>
+                    <span class="detail-value">${osDisplay}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Browser</span>
+                    <span class="detail-value">${browserDisplay}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Resolusi Layar</span>
+                    <span class="detail-value">${deviceInfo.screen}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Touch Support</span>
+                    <span class="detail-value">${deviceInfo.touchSupport}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Pixel Density</span>
+                    <span class="detail-value">${deviceInfo.pixelRatio}x</span>
+                </div>
+            `;
+            
+            const messages = [
+                `Perangkat yang Anda gunakan adalah: ${deviceInfo.deviceType} dengan ${deviceInfo.os}`,
+                `Analisis selesai! Anda mengakses dari ${deviceInfo.deviceType} ${deviceInfo.os}`,
+                `Hasil deteksi: ${deviceInfo.deviceType}, OS: ${deviceInfo.os}, Browser: ${deviceInfo.browser}`
+            ];
+            
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            speakText(randomMessage);
+        }
+        
+        function setupEventListeners() {
+            const detectBtn = document.getElementById('detectBtn');
+            
+            detectBtn.addEventListener('click', function() {
+                const deviceInfo = detectDevice();
+                displayDeviceInfo(deviceInfo);
+                
+                this.innerHTML = '<i class="fas fa-sync-alt"></i> Deteksi Ulang';
+                this.style.animation = 'pulse 2s infinite';
+            });
+            
+            document.getElementById('githubLink').href = 'https://wakatime.com/@devonn';
+            document.getElementById('githubLink').innerHTML = '<i class="fab fa-github"></i> Made by';
+            
+            detectBtn.style.animation = 'pulse 2s infinite';
+            
+            if (isMobile) {
+                document.querySelector('.mobile-hint').style.display = 'block';
+            }
+        }
+        
+        window.addEventListener('load', init);
+        
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.4); }
+                70% { box-shadow: 0 0 0 10px rgba(0, 212, 255, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
